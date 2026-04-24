@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Allow: /landing
+Disallow: /expense-claims-dashboard
+Disallow: /my-claims
+Disallow: /approvals
+Disallow: /activity-log
+Disallow: /reports
+Disallow: /team-members
+Disallow: /compliance
+Disallow: /settings
+Disallow: /initial-selection-screen
+
+Sitemap: https://claimflow7165.builtwithrocket.new/sitemap.xml
