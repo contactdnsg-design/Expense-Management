@@ -6,6 +6,7 @@ import {
   AlertTriangle, Info, Users, Zap, Timer, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { createClient } from '@/lib/supabase/client';
 
 interface ApprovalStep {
   level: number;
@@ -35,6 +36,7 @@ interface ClaimTypeConfig {
   extraApprovalRequired: boolean;
   warningMessage?: string;
   features: string[];
+  route: string;
 }
 
 const CLAIM_TYPES: ClaimTypeConfig[] = [
@@ -51,6 +53,7 @@ const CLAIM_TYPES: ClaimTypeConfig[] = [
     glowColor: 'rgba(6,182,212,0.12)',
     badgeColor: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30',
     badgeLabel: 'Auto-populated',
+    route: '/claims/pre-claim',
     useCases: [
       'Planned outstation travel to client site',
       'Conference or industry event attendance',
@@ -86,6 +89,7 @@ const CLAIM_TYPES: ClaimTypeConfig[] = [
     glowColor: 'rgba(139,92,246,0.12)',
     badgeColor: 'bg-violet-500/15 text-violet-400 border-violet-500/30',
     badgeLabel: 'Most common',
+    route: '/claims/post-claim',
     useCases: [
       'Reimbursement for completed business travel',
       'Client entertainment and meal expenses',
@@ -121,6 +125,7 @@ const CLAIM_TYPES: ClaimTypeConfig[] = [
     glowColor: 'rgba(245,158,11,0.1)',
     badgeColor: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
     badgeLabel: 'Extended review',
+    route: '/claims/exception',
     useCases: [
       'Regulatory compliance or legal expenses',
       'Emergency procurement without prior approval',
@@ -159,11 +164,25 @@ export default function ClaimTypeCards() {
 
   const handleProceed = async (config: ClaimTypeConfig) => {
     setLoading(config.id);
-    // Backend integration point: create draft claim record with claim_type, assign auto-generated claim ID
-    await new Promise(r => setTimeout(r, 800));
-    toast.success(`${config.label} claim initiated — redirecting to Step 1`);
-    // In full implementation, route to /claims/new?type=pre-claim&step=1
-    router.push('/expense-claims-dashboard');
+    try {
+      // Check if user is authenticated
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        toast.error('Please sign in to create a claim');
+        router.push('/sign-up-login-screen');
+        return;
+      }
+
+      toast.success(`${config.label} — starting claim wizard`);
+      // Navigate to the correct claim flow page
+      router.push(config.route);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to start claim');
+    } finally {
+      setLoading(null);
+    }
   };
 
   return (
@@ -189,16 +208,13 @@ export default function ClaimTypeCards() {
               aria-pressed={isSelected}
               aria-label={`Select ${config.label} claim type`}
             >
-              {/* Selected indicator */}
               {isSelected && (
                 <div className="absolute top-3 right-3 z-10">
                   <CheckCircle2 size={18} className={config.color} />
                 </div>
               )}
 
-              {/* Card content */}
               <div className="p-5">
-                {/* Icon + badge */}
                 <div className="flex items-start justify-between mb-4">
                   <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${config.bgColor} border ${config.borderColor} ${config.color}`}>
                     {config.icon}
@@ -208,12 +224,10 @@ export default function ClaimTypeCards() {
                   </span>
                 </div>
 
-                {/* Title */}
                 <h3 className="text-lg font-bold text-white mb-1">{config.label}</h3>
                 <p className={`text-xs font-medium mb-3 ${config.color}`}>{config.tagline}</p>
                 <p className="text-sm text-slate-400 leading-relaxed mb-4">{config.description}</p>
 
-                {/* Warning for "Other" */}
                 {config.warningMessage && (
                   <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/8 border border-amber-500/20 mb-4">
                     <AlertTriangle size={13} className="text-amber-400 flex-shrink-0 mt-0.5" />
@@ -221,7 +235,6 @@ export default function ClaimTypeCards() {
                   </div>
                 )}
 
-                {/* Use cases */}
                 <div className="mb-4">
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Typical Use Cases</p>
                   <ul className="space-y-1.5">
@@ -234,7 +247,6 @@ export default function ClaimTypeCards() {
                   </ul>
                 </div>
 
-                {/* Key features */}
                 <div className="mb-4">
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Features</p>
                   <div className="space-y-1">
@@ -279,7 +291,6 @@ export default function ClaimTypeCards() {
                   {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                 </button>
 
-                {/* Approval flow expanded */}
                 {isExpanded && (
                   <div className="mb-4 space-y-2 animate-float-up">
                     {config.approvalFlow.map(step => (
@@ -318,10 +329,10 @@ export default function ClaimTypeCards() {
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                         </svg>
-                        Initializing claim…
+                        Starting claim…
                       </>
                     ) : (
-                      <>Proceed with {config.label} <ArrowRight size={16} /></>
+                      <>Start {config.label} <ArrowRight size={16} /></>
                     )}
                   </button>
                 )}
